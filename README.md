@@ -1,0 +1,158 @@
+# Campaign Image Generator
+
+Generate campaign images from a text prompt using Cloudflare Workers AI (Stable Diffusion XL),
+with prompt history and multiple image variations per request. Single FastAPI service
+serves both the API and the frontend, so there's one thing to run and one thing to deploy.
+
+Runs on Cloudflare's free tier: 10,000 neurons/day, no credit card required.
+
+## Features
+- Text-to-image generation via Cloudflare Workers AI (free daily quota)
+- 1–4 variations per prompt in a single request
+- Persistent prompt/image history (SQLite), viewable and deletable from the sidebar
+- One deployable service (backend serves the frontend as static files — no CORS setup needed)
+
+## Project structure
+```
+campaign-app/
+├── main.py              # FastAPI app: API routes + serves static/ as the frontend
+├── static/
+│   └── index.html       # Frontend (vanilla HTML/CSS/JS, no build step)
+├── requirements.txt
+├── Dockerfile
+├── docker-compose.yml
+├── .env.example
+├── .gitignore
+└── .dockerignore
+```
+
+---
+
+## 1. Get free Cloudflare Workers AI credentials
+
+1. Sign up at https://dash.cloudflare.com/sign-up (no credit card needed for the free tier)
+2. Your **Account ID** is on the right-hand sidebar of the main Cloudflare dashboard —
+   copy it
+3. Go to **My Profile → API Tokens** (https://dash.cloudflare.com/profile/api-tokens)
+4. Click **Create Token → Custom Token**
+5. Under permissions, add: **Account → Workers AI → Read** (or "Edit", either works
+   for running inference)
+6. Create the token and copy it — you won't see it again
+
+You now have two values: `CF_ACCOUNT_ID` and `CF_API_TOKEN`.
+
+**Free tier limits:** 10,000 neurons/day, no credit card required. An SDXL image costs
+roughly a few hundred neurons, so this comfortably covers dozens of images a day for
+personal use. If you exceed it, requests just fail until the daily quota resets — there's
+no surprise billing on the free Workers plan.
+
+---
+
+## 2. Run locally (no Docker)
+
+```bash
+cd campaign-app
+python -m venv venv
+source venv/bin/activate      # Windows: venv\Scripts\activate
+pip install -r requirements.txt
+
+cp .env.example .env
+# edit .env and paste your CF_ACCOUNT_ID and CF_API_TOKEN
+```
+
+Run it:
+```bash
+python main.py
+```
+
+Open **http://localhost:8000** in your browser — that's the frontend and API together.
+
+---
+
+## 3. Run locally with Docker
+
+```bash
+cp .env.example .env
+# edit .env and paste your CF_ACCOUNT_ID and CF_API_TOKEN
+
+docker compose up --build
+```
+
+Open **http://localhost:8000**. The SQLite history file persists in a Docker volume
+(`history-data`) across container restarts.
+
+---
+
+## 4. Push this to your own GitHub repo
+
+From inside the `campaign-app` folder:
+
+```bash
+git init
+git add .
+git commit -m "Initial commit: campaign image generator"
+```
+
+Create an empty repo on GitHub (no README/gitignore, so it doesn't conflict), then:
+
+```bash
+git branch -M main
+git remote add origin https://github.com/YOUR_USERNAME/YOUR_REPO_NAME.git
+git push -u origin main
+```
+
+Your `.env` file is excluded by `.gitignore`, so your token won't be committed.
+Double-check with `git status` before your first push that `.env` isn't listed.
+
+---
+
+## 5. Deploy (Railway — simplest option)
+
+Railway auto-detects the `Dockerfile` and needs no extra config.
+
+1. Go to https://railway.app and sign in with GitHub
+2. **New Project → Deploy from GitHub repo** → select your repo
+3. Once it's created, go to the service's **Variables** tab and add:
+   - `CF_ACCOUNT_ID` = your Cloudflare account ID
+   - `CF_API_TOKEN` = your Cloudflare API token
+4. Railway builds the Dockerfile and gives you a public URL automatically
+5. **Persisting history across deploys (optional):** by default the container's
+   filesystem resets on redeploy, so history would reset too. If you want it to
+   persist, go to the service's **Settings → Volumes**, mount a volume at
+   `/app/data`, and set an environment variable `DB_PATH=/app/data/history.db`.
+
+## Alternative: Render
+
+1. Go to https://render.com → **New → Web Service** → connect your GitHub repo
+2. Render detects the `Dockerfile` automatically
+3. Under **Environment**, add `CF_ACCOUNT_ID` and `CF_API_TOKEN` with your values
+4. For persistent history, add a **Disk** mounted at `/app/data` in the service
+   settings, and set `DB_PATH=/app/data/history.db` as an environment variable
+5. Deploy — Render gives you a public `.onrender.com` URL
+
+Note: Render's free tier spins the service down after inactivity, so the first
+request after idling will be slow (cold start on Render's side; Cloudflare itself
+has no cold starts).
+
+---
+
+## API reference
+
+| Method | Path                                  | Description                          |
+|--------|---------------------------------------|---------------------------------------|
+| GET    | `/api/v1/health`                      | Health check                          |
+| POST   | `/api/v1/generate-campaign`           | Body: `{"prompt": str, "num_variations": int}` (1–4) |
+| GET    | `/api/v1/history?limit=30`            | Recent generations with images        |
+| DELETE | `/api/v1/history/{generation_id}`     | Delete one history entry              |
+
+## Notes
+- Images are stored as base64 directly in SQLite for simplicity. Fine for personal
+  use; if this grows heavily, switch to storing images in object storage (e.g. S3
+  or Cloudflare R2) and keeping only URLs in the database.
+- `num_variations` is capped at 4 server-side regardless of what's sent, to control
+  how fast you burn through the daily free neuron quota.
+- Cloudflare's free tier (10,000 neurons/day) resets daily, not monthly — much more
+  forgiving for regular use than Hugging Face's small monthly free credit.
+- If you want higher-quality output later, Cloudflare also hosts a FLUX model
+  (`@cf/black-forest-labs/flux-1-schnell`) — swap `CF_MODEL` in `main.py` to try it,
+  though check current free-tier neuron cost for that model before relying on it.
