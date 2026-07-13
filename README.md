@@ -1,4 +1,20 @@
-# Campaign Image Generator
+# 🎨 Campaign Image Generator
+
+![Python](https://img.shields.io/badge/python-3.11-blue)
+![FastAPI](https://img.shields.io/badge/FastAPI-backend-009688)
+![License](https://img.shields.io/badge/license-MIT-green)
+
+A self-hosted tool for generating marketing/campaign images from a text prompt,
+built on FastAPI and Cloudflare Workers AI (Stable Diffusion XL). Generate multiple
+variations per prompt, browse past generations in a history sidebar, and run the
+whole thing — API and frontend together — as a single deployable service.
+
+Built to run entirely on free-tier infrastructure: Cloudflare Workers AI gives
+10,000 neurons/day at no cost, no credit card required.
+
+**Live demo:** _add your deployed URL here once you've deployed it (see Deploy section below)_
+
+---
 
 Generate campaign images from a text prompt using Cloudflare Workers AI (Stable Diffusion XL),
 with prompt history and multiple image variations per request. Single FastAPI service
@@ -103,6 +119,21 @@ git push -u origin main
 
 Your `.env` file is excluded by `.gitignore`, so your token won't be committed.
 Double-check with `git status` before your first push that `.env` isn't listed.
+
+### Updating the repo after the first push
+
+Once the repo exists on GitHub, any time you change files locally:
+
+```bash
+git status              # see what changed
+git add .
+git commit -m "Describe what you changed"
+git push
+```
+
+That's the full cycle — `add` stages changes, `commit` saves them locally with a
+message, `push` sends them to GitHub. No need to `git init` or `remote add` again;
+that's only for the very first setup.
 
 ---
 
