@@ -3,132 +3,269 @@
 <head>
 <meta charset="UTF-8" />
 <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-<title>Campaign Image Generator</title>
+<title>Proof — Campaign Image Generator</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Archivo+Narrow:wght@500;600;700&family=Inter:wght@400;500;600&family=JetBrains+Mono:wght@400;500&display=swap" rel="stylesheet">
 <style>
   :root {
-    --bg: #0f1115;
-    --card: #171a21;
-    --accent: #6d5efc;
-    --accent-hover: #5647e0;
-    --text: #e8e9ed;
-    --muted: #9aa0ac;
-    --border: #2a2e38;
+    --paper: #F5F6F3;
+    --paper-raised: #FFFFFF;
+    --ink: #1B1B1D;
+    --ink-soft: #4A4B4D;
+    --red: #D8342A;
+    --slate: #54636E;
+    --slate-line: #D8DBD6;
+    --ochre: #C9971C;
   }
   * { box-sizing: border-box; }
-  body {
+  html, body {
     margin: 0;
-    font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
-    background: var(--bg);
-    color: var(--text);
+    background: var(--paper);
+    color: var(--ink);
+    font-family: 'Inter', sans-serif;
+    -webkit-font-smoothing: antialiased;
+  }
+  body {
     display: flex;
     min-height: 100vh;
   }
+  h1, h2, h3, .display {
+    font-family: 'Archivo Narrow', sans-serif;
+    font-weight: 700;
+    letter-spacing: 0.01em;
+    text-transform: uppercase;
+  }
+  .mono {
+    font-family: 'JetBrains Mono', monospace;
+  }
+
+  /* ---------- Registration mark signature element ---------- */
+  .reg-mark {
+    position: absolute;
+    width: 14px;
+    height: 14px;
+    pointer-events: none;
+  }
+  .reg-mark::before, .reg-mark::after {
+    content: "";
+    position: absolute;
+    background: var(--red);
+  }
+  .reg-mark::before { width: 100%; height: 1px; top: 50%; left: 0; transform: translateY(-50%); }
+  .reg-mark::after { width: 1px; height: 100%; left: 50%; top: 0; transform: translateX(-50%); }
+  .reg-mark.tl { top: -7px; left: -7px; }
+  .reg-mark.tr { top: -7px; right: -7px; }
+  .reg-mark.bl { bottom: -7px; left: -7px; }
+  .reg-mark.br { bottom: -7px; right: -7px; }
+
+  /* ---------- Sidebar: contact sheet filmstrip ---------- */
   .sidebar {
-    width: 280px;
+    width: 300px;
     flex-shrink: 0;
-    border-right: 1px solid var(--border);
-    padding: 24px 16px;
+    background: var(--ink);
+    color: #E8E8E4;
+    padding: 28px 18px;
     overflow-y: auto;
     max-height: 100vh;
   }
-  .sidebar h2 {
-    font-size: 0.95rem;
-    color: var(--muted);
-    text-transform: uppercase;
-    letter-spacing: 0.05em;
-    margin: 0 0 16px 4px;
+  .sidebar-header {
+    display: flex;
+    align-items: baseline;
+    justify-content: space-between;
+    margin-bottom: 4px;
+    padding: 0 4px;
   }
-  .history-item {
-    background: var(--card);
-    border: 1px solid var(--border);
-    border-radius: 10px;
+  .sidebar-header h2 {
+    font-size: 0.95rem;
+    margin: 0;
+    color: #E8E8E4;
+  }
+  .sidebar-header .count {
+    font-family: 'JetBrains Mono', monospace;
+    font-size: 0.75rem;
+    color: var(--ochre);
+  }
+  .sidebar-sub {
+    font-size: 0.72rem;
+    color: #9A9A94;
+    padding: 0 4px;
+    margin-bottom: 18px;
+    font-family: 'JetBrains Mono', monospace;
+  }
+  .frame-item {
+    position: relative;
+    background: #242426;
+    border: 1px solid #38383a;
+    border-radius: 2px;
     padding: 10px;
-    margin-bottom: 10px;
+    margin-bottom: 12px;
     cursor: pointer;
     transition: border-color 0.15s ease;
   }
-  .history-item:hover { border-color: var(--accent); }
-  .history-item .thumb-row {
+  .frame-item:hover { border-color: var(--ochre); }
+  .frame-item .sprocket-row {
     display: flex;
-    gap: 4px;
+    gap: 3px;
     margin-bottom: 8px;
   }
-  .history-item img {
-    width: 100%;
+  .frame-item .sprocket {
+    flex: 1;
     aspect-ratio: 1;
-    object-fit: cover;
-    border-radius: 6px;
+    background: #111;
+    border-radius: 1px;
+    overflow: hidden;
   }
-  .history-item .prompt-text {
-    font-size: 0.8rem;
-    color: var(--text);
+  .frame-item .sprocket img {
+    width: 100%;
+    height: 100%;
+    object-fit: cover;
+    display: block;
+  }
+  .frame-item .prompt-text {
+    font-size: 0.78rem;
+    color: #E8E8E4;
     overflow: hidden;
     text-overflow: ellipsis;
     display: -webkit-box;
     -webkit-line-clamp: 2;
     -webkit-box-orient: vertical;
+    line-height: 1.35;
   }
-  .history-item .meta-row {
+  .frame-item .meta-row {
     display: flex;
     justify-content: space-between;
     align-items: center;
-    margin-top: 6px;
+    margin-top: 8px;
+    font-family: 'JetBrains Mono', monospace;
   }
-  .history-item .timestamp {
-    font-size: 0.7rem;
-    color: var(--muted);
+  .frame-item .timestamp {
+    font-size: 0.65rem;
+    color: #7A7A74;
   }
-  .history-item .delete-btn {
+  .frame-item .tag {
+    font-size: 0.6rem;
+    color: var(--ochre);
+    text-transform: uppercase;
+    letter-spacing: 0.04em;
+  }
+  .frame-item .delete-btn {
     background: none;
     border: none;
-    color: var(--muted);
+    color: #7A7A74;
     cursor: pointer;
-    font-size: 0.75rem;
-    padding: 2px 6px;
+    font-size: 0.68rem;
+    font-family: 'JetBrains Mono', monospace;
+    padding: 2px 4px;
   }
-  .history-item .delete-btn:hover { color: #ff6b6b; }
+  .frame-item .delete-btn:hover { color: var(--red); }
   .empty-history {
-    color: var(--muted);
-    font-size: 0.85rem;
-    padding: 8px 4px;
+    color: #7A7A74;
+    font-size: 0.8rem;
+    padding: 10px 4px;
+    font-family: 'JetBrains Mono', monospace;
   }
 
+  /* ---------- Main / proof sheet ---------- */
   .main {
     flex: 1;
     display: flex;
     justify-content: center;
-    padding: 40px 24px;
+    padding: 48px 28px;
     overflow-y: auto;
   }
-  .container { width: 100%; max-width: 640px; }
-  h1 { font-size: 1.6rem; margin-bottom: 4px; }
-  p.subtitle { color: var(--muted); margin-top: 0; margin-bottom: 28px; }
-  .card {
-    background: var(--card);
-    border: 1px solid var(--border);
-    border-radius: 12px;
-    padding: 24px;
+  .container { width: 100%; max-width: 700px; }
+
+  .masthead { margin-bottom: 6px; }
+  .masthead h1 {
+    font-size: 2rem;
+    margin: 0;
+    line-height: 1;
   }
-  label { display: block; font-size: 0.85rem; color: var(--muted); margin-bottom: 8px; }
+  .masthead h1 .accent { color: var(--red); }
+  .subtitle {
+    color: var(--ink-soft);
+    margin-top: 8px;
+    margin-bottom: 32px;
+    font-size: 0.95rem;
+    max-width: 46ch;
+  }
+
+  .proof-card {
+    position: relative;
+    background: var(--paper-raised);
+    border: 1px solid var(--slate-line);
+    border-radius: 3px;
+    padding: 28px;
+    margin: 20px 0 32px;
+  }
+
+  label.field-label {
+    display: block;
+    font-family: 'JetBrains Mono', monospace;
+    font-size: 0.7rem;
+    text-transform: uppercase;
+    letter-spacing: 0.06em;
+    color: var(--slate);
+    margin-bottom: 10px;
+  }
+
   textarea {
     width: 100%;
-    min-height: 90px;
-    background: #10131a;
-    border: 1px solid var(--border);
-    border-radius: 8px;
-    color: var(--text);
-    padding: 12px;
+    min-height: 88px;
+    background: var(--paper);
+    border: 1px solid var(--slate-line);
+    border-radius: 2px;
+    color: var(--ink);
+    padding: 14px;
     font-size: 0.95rem;
+    font-family: 'Inter', sans-serif;
     resize: vertical;
-    font-family: inherit;
   }
-  textarea:focus { outline: none; border-color: var(--accent); }
+  textarea:focus {
+    outline: none;
+    border-color: var(--red);
+  }
 
-  .row {
+  /* Campaign type chips */
+  .type-row {
+    margin-top: 22px;
+  }
+  .chip-group {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 8px;
+  }
+  .chip {
+    font-family: 'JetBrains Mono', monospace;
+    font-size: 0.72rem;
+    padding: 7px 12px;
+    border: 1px solid var(--slate-line);
+    border-radius: 20px;
+    background: var(--paper);
+    color: var(--ink-soft);
+    cursor: pointer;
+    transition: all 0.12s ease;
+    text-transform: uppercase;
+    letter-spacing: 0.03em;
+  }
+  .chip:hover { border-color: var(--slate); }
+  .chip.active {
+    background: var(--ink);
+    border-color: var(--ink);
+    color: #fff;
+  }
+  .chip .dim {
+    color: var(--ochre);
+    margin-left: 4px;
+  }
+  .chip.active .dim { color: #E8B84B; }
+
+  .controls-row {
     display: flex;
     align-items: center;
     justify-content: space-between;
-    margin-top: 16px;
+    margin-top: 22px;
   }
   .variation-control {
     display: flex;
@@ -136,114 +273,165 @@
     gap: 10px;
   }
   .variation-control button {
-    width: 32px;
-    height: 32px;
-    border-radius: 6px;
-    border: 1px solid var(--border);
-    background: #10131a;
-    color: var(--text);
+    width: 28px;
+    height: 28px;
+    border-radius: 2px;
+    border: 1px solid var(--slate-line);
+    background: var(--paper);
+    color: var(--ink);
     font-size: 1rem;
     cursor: pointer;
     margin: 0;
+    font-family: 'JetBrains Mono', monospace;
   }
+  .variation-control button:hover { border-color: var(--slate); }
   .variation-control span {
-    font-size: 0.95rem;
-    min-width: 16px;
+    font-family: 'JetBrains Mono', monospace;
+    font-size: 0.9rem;
+    min-width: 14px;
     text-align: center;
   }
 
   button.generate-btn {
-    margin-top: 16px;
-    width: 100%;
-    background: var(--accent);
-    color: white;
+    background: var(--red);
+    color: #fff;
     border: none;
-    border-radius: 8px;
-    padding: 12px;
-    font-size: 0.95rem;
-    font-weight: 600;
+    border-radius: 2px;
+    padding: 11px 22px;
+    font-family: 'Archivo Narrow', sans-serif;
+    font-weight: 700;
+    text-transform: uppercase;
+    letter-spacing: 0.04em;
+    font-size: 0.85rem;
     cursor: pointer;
     transition: background 0.15s ease;
   }
-  button.generate-btn:hover:not(:disabled) { background: var(--accent-hover); }
-  button:disabled { opacity: 0.6; cursor: not-allowed; }
+  button.generate-btn:hover:not(:disabled) { background: #b8281f; }
+  button:disabled { opacity: 0.55; cursor: not-allowed; }
 
-  .status { margin-top: 16px; font-size: 0.9rem; color: var(--muted); min-height: 20px; }
-  .status.error { color: #ff6b6b; }
-
-  .result-grid {
-    margin-top: 20px;
-    display: grid;
-    grid-template-columns: repeat(auto-fit, minmax(140px, 1fr));
-    gap: 10px;
+  .status-line {
+    margin-top: 16px;
+    font-family: 'JetBrains Mono', monospace;
+    font-size: 0.8rem;
+    color: var(--slate);
+    min-height: 18px;
   }
-  .result-grid figure { margin: 0; }
-  .result-grid img {
-    width: 100%;
-    border-radius: 10px;
-    border: 1px solid var(--border);
-    display: block;
-  }
-  .result-grid figcaption {
-    text-align: center;
-    margin-top: 6px;
-  }
-  .result-grid a {
-    font-size: 0.75rem;
-    color: var(--accent);
-    text-decoration: none;
-  }
+  .status-line.error { color: var(--red); }
 
   .spinner {
     display: inline-block;
-    width: 14px;
-    height: 14px;
-    border: 2px solid var(--muted);
-    border-top-color: var(--accent);
+    width: 11px;
+    height: 11px;
+    border: 2px solid var(--slate-line);
+    border-top-color: var(--red);
     border-radius: 50%;
     animation: spin 0.7s linear infinite;
     margin-right: 8px;
     vertical-align: middle;
   }
   @keyframes spin { to { transform: rotate(360deg); } }
+
+  /* Contact sheet result grid */
+  .sheet-label {
+    font-family: 'JetBrains Mono', monospace;
+    font-size: 0.7rem;
+    text-transform: uppercase;
+    letter-spacing: 0.06em;
+    color: var(--slate);
+    margin: 32px 0 12px;
+    display: flex;
+    align-items: center;
+    gap: 8px;
+  }
+  .sheet-label::after {
+    content: "";
+    flex: 1;
+    height: 1px;
+    background: var(--slate-line);
+  }
+  .contact-sheet {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(150px, 1fr));
+    gap: 16px;
+  }
+  .frame {
+    position: relative;
+    background: var(--paper-raised);
+    border: 1px solid var(--slate-line);
+  }
+  .frame img {
+    width: 100%;
+    display: block;
+  }
+  .frame-footer {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    padding: 8px 10px;
+    font-family: 'JetBrains Mono', monospace;
+    font-size: 0.68rem;
+    color: var(--slate);
+  }
+  .frame-footer a { color: var(--red); text-decoration: none; }
+  .frame-footer a:hover { text-decoration: underline; }
 </style>
 </head>
 <body>
 
 <aside class="sidebar">
-  <h2>History</h2>
+  <div class="sidebar-header">
+    <h2>Contact Sheet</h2>
+    <span class="count mono" id="historyCount">00</span>
+  </div>
+  <div class="sidebar-sub">PREVIOUS GENERATIONS</div>
   <div id="historyList"></div>
 </aside>
 
 <div class="main">
   <div class="container">
-    <h1>🎨 Campaign Image Generator</h1>
-    <p class="subtitle">Describe a campaign image and generate variations with FLUX.1-schnell</p>
+    <div class="masthead">
+      <h1>Proof<span class="accent">.</span></h1>
+    </div>
+    <p class="subtitle">Describe a campaign visual, pick a format, generate variations. Every proof is saved to the contact sheet on the left.</p>
 
-    <div class="card">
-      <label for="prompt">Prompt</label>
-      <textarea id="prompt" placeholder="e.g. A vibrant summer sale poster with tropical fruit, bold typography, orange and teal palette"></textarea>
+    <div class="proof-card">
+      <div class="reg-mark tl"></div>
+      <div class="reg-mark tr"></div>
+      <div class="reg-mark bl"></div>
+      <div class="reg-mark br"></div>
 
-      <div class="row">
+      <label class="field-label" for="prompt">Prompt</label>
+      <textarea id="prompt" placeholder="e.g. A vibrant summer sale display with tropical fruit, bold typography, orange and teal palette"></textarea>
+
+      <div class="type-row">
+        <label class="field-label">Format</label>
+        <div class="chip-group" id="typeChips"></div>
+      </div>
+
+      <div class="controls-row">
         <div class="variation-control">
-          <label style="margin:0;">Variations</label>
+          <label class="field-label" style="margin:0;">Frames</label>
           <button onclick="changeVariations(-1)">−</button>
           <span id="variationCount">1</span>
           <button onclick="changeVariations(1)">+</button>
         </div>
+        <button id="generateBtn" class="generate-btn" onclick="generateImage()">Generate</button>
       </div>
 
-      <button id="generateBtn" class="generate-btn" onclick="generateImage()">Generate</button>
+      <div id="status" class="status-line"></div>
+    </div>
 
-      <div id="status" class="status"></div>
-      <div id="resultGrid" class="result-grid"></div>
+    <div id="resultSection" style="display:none;">
+      <div class="sheet-label">Latest proof</div>
+      <div id="resultGrid" class="contact-sheet"></div>
     </div>
   </div>
 </div>
 
 <script>
-const API_BASE = ""; // same-origin: frontend and backend are served together
+const API_BASE = "";
 let variations = 1;
+let selectedType = null;
 const MAX_VARIATIONS = 4;
 
 function changeVariations(delta) {
@@ -251,64 +439,96 @@ function changeVariations(delta) {
   document.getElementById("variationCount").textContent = variations;
 }
 
-function renderImagesInto(container, images) {
-  container.innerHTML = "";
-  images.forEach((img, i) => {
-    const fig = document.createElement("figure");
-    const image = document.createElement("img");
-    image.src = `data:${img.content_type};base64,${img.image_base64}`;
-    fig.appendChild(image);
+async function loadCampaignTypes() {
+  const container = document.getElementById("typeChips");
+  try {
+    const response = await fetch(`${API_BASE}/api/v1/campaign-types`);
+    const data = await response.json();
+    if (data.status !== "success") return;
 
-    const caption = document.createElement("figcaption");
-    const link = document.createElement("a");
-    link.href = image.src;
-    link.download = `campaign-image-${i + 1}.jpg`;
-    link.textContent = "Download";
-    caption.appendChild(link);
-    fig.appendChild(caption);
+    data.types.forEach((type) => {
+      const chip = document.createElement("div");
+      chip.className = "chip";
+      chip.dataset.key = type.key;
+      chip.innerHTML = `${type.label}<span class="dim">${type.width}×${type.height}</span>`;
+      chip.onclick = () => selectType(type.key);
+      container.appendChild(chip);
+    });
+  } catch (err) {
+    container.innerHTML = '<span style="color:var(--slate); font-size:0.75rem;">Could not load formats.</span>';
+  }
+}
 
-    container.appendChild(fig);
+function selectType(key) {
+  selectedType = selectedType === key ? null : key;
+  document.querySelectorAll(".chip").forEach((chip) => {
+    chip.classList.toggle("active", chip.dataset.key === selectedType);
   });
+}
+
+function frameHtml(img, index) {
+  return `
+    <div class="frame">
+      <div class="reg-mark tl"></div>
+      <div class="reg-mark tr"></div>
+      <div class="reg-mark bl"></div>
+      <div class="reg-mark br"></div>
+      <img src="data:${img.content_type};base64,${img.image_base64}" />
+      <div class="frame-footer">
+        <span>FRAME ${String(index + 1).padStart(2, "0")}</span>
+        <a href="data:${img.content_type};base64,${img.image_base64}" download="proof-frame-${index + 1}.jpg">Download</a>
+      </div>
+    </div>
+  `;
+}
+
+function renderResultGrid(images) {
+  const section = document.getElementById("resultSection");
+  const grid = document.getElementById("resultGrid");
+  section.style.display = "block";
+  grid.innerHTML = images.map((img, i) => frameHtml(img, i)).join("");
 }
 
 async function generateImage() {
   const promptEl = document.getElementById("prompt");
   const statusEl = document.getElementById("status");
-  const resultGrid = document.getElementById("resultGrid");
   const btn = document.getElementById("generateBtn");
 
   const prompt = promptEl.value.trim();
   if (!prompt) {
-    statusEl.textContent = "Please enter a prompt first.";
-    statusEl.className = "status error";
+    statusEl.textContent = "Prompt cannot be empty.";
+    statusEl.className = "status-line error";
     return;
   }
 
   btn.disabled = true;
-  resultGrid.innerHTML = "";
-  statusEl.className = "status";
-  statusEl.innerHTML = `<span class="spinner"></span>Generating ${variations} image(s), this can take a while...`;
+  statusEl.className = "status-line";
+  statusEl.innerHTML = `<span class="spinner"></span>Exposing ${variations} frame(s)...`;
 
   try {
     const response = await fetch(`${API_BASE}/api/v1/generate-campaign`, {
       method: "POST",
       headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ prompt, num_variations: variations }),
+      body: JSON.stringify({
+        prompt,
+        num_variations: variations,
+        campaign_type: selectedType,
+      }),
     });
     const data = await response.json();
 
     if (data.status === "success") {
       statusEl.textContent = data.failed_count > 0
-        ? `Done, but ${data.failed_count} variation(s) failed.`
-        : "Done!";
-      renderImagesInto(resultGrid, data.images);
+        ? `Developed, but ${data.failed_count} frame(s) failed.`
+        : "Proof developed.";
+      renderResultGrid(data.images);
       loadHistory();
     } else {
-      statusEl.className = "status error";
+      statusEl.className = "status-line error";
       statusEl.textContent = data.message || "Something went wrong.";
     }
   } catch (err) {
-    statusEl.className = "status error";
+    statusEl.className = "status-line error";
     statusEl.textContent = `Request failed: ${err.message}`;
   } finally {
     btn.disabled = false;
@@ -317,28 +537,35 @@ async function generateImage() {
 
 async function loadHistory() {
   const listEl = document.getElementById("historyList");
+  const countEl = document.getElementById("historyCount");
   try {
     const response = await fetch(`${API_BASE}/api/v1/history`);
     const data = await response.json();
 
     if (data.status !== "success" || data.history.length === 0) {
-      listEl.innerHTML = '<div class="empty-history">No generations yet.</div>';
+      listEl.innerHTML = '<div class="empty-history">No proofs developed yet.</div>';
+      countEl.textContent = "00";
       return;
     }
 
+    countEl.textContent = String(data.history.length).padStart(2, "0");
     listEl.innerHTML = "";
+
     data.history.forEach((entry) => {
       const item = document.createElement("div");
-      item.className = "history-item";
+      item.className = "frame-item";
 
-      const thumbRow = document.createElement("div");
-      thumbRow.className = "thumb-row";
+      const sprocketRow = document.createElement("div");
+      sprocketRow.className = "sprocket-row";
       entry.images.slice(0, 3).forEach((img) => {
+        const cell = document.createElement("div");
+        cell.className = "sprocket";
         const thumb = document.createElement("img");
         thumb.src = `data:${img.content_type};base64,${img.image_base64}`;
-        thumbRow.appendChild(thumb);
+        cell.appendChild(thumb);
+        sprocketRow.appendChild(cell);
       });
-      item.appendChild(thumbRow);
+      item.appendChild(sprocketRow);
 
       const promptText = document.createElement("div");
       promptText.className = "prompt-text";
@@ -348,15 +575,22 @@ async function loadHistory() {
       const metaRow = document.createElement("div");
       metaRow.className = "meta-row";
 
-      const timestamp = document.createElement("span");
+      const left = document.createElement("div");
+      const timestamp = document.createElement("div");
       timestamp.className = "timestamp";
-      const date = new Date(entry.created_at);
-      timestamp.textContent = date.toLocaleString();
-      metaRow.appendChild(timestamp);
+      timestamp.textContent = new Date(entry.created_at).toLocaleString();
+      left.appendChild(timestamp);
+      if (entry.campaign_type) {
+        const tag = document.createElement("div");
+        tag.className = "tag";
+        tag.textContent = entry.campaign_type;
+        left.appendChild(tag);
+      }
+      metaRow.appendChild(left);
 
       const deleteBtn = document.createElement("button");
       deleteBtn.className = "delete-btn";
-      deleteBtn.textContent = "Delete";
+      deleteBtn.textContent = "DEL";
       deleteBtn.onclick = async (e) => {
         e.stopPropagation();
         await fetch(`${API_BASE}/api/v1/history/${entry.id}`, { method: "DELETE" });
@@ -368,18 +602,19 @@ async function loadHistory() {
 
       item.onclick = () => {
         document.getElementById("prompt").value = entry.prompt;
-        renderImagesInto(document.getElementById("resultGrid"), entry.images);
-        document.getElementById("status").textContent = "Loaded from history.";
-        document.getElementById("status").className = "status";
+        renderResultGrid(entry.images);
+        document.getElementById("status").textContent = "Loaded from contact sheet.";
+        document.getElementById("status").className = "status-line";
       };
 
       listEl.appendChild(item);
     });
   } catch (err) {
-    listEl.innerHTML = '<div class="empty-history">Could not load history.</div>';
+    listEl.innerHTML = '<div class="empty-history">Could not load contact sheet.</div>';
   }
 }
 
+loadCampaignTypes();
 loadHistory();
 </script>
 </body>

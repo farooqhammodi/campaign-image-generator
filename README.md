@@ -1,18 +1,24 @@
-# 🎨 Campaign Image Generator
+# 🎨 Proof — Campaign Image Generator
 
 ![Python](https://img.shields.io/badge/python-3.11-blue)
 ![FastAPI](https://img.shields.io/badge/FastAPI-backend-009688)
+![Tests](https://github.com/YOUR_USERNAME/YOUR_REPO_NAME/actions/workflows/tests.yml/badge.svg)
 ![License](https://img.shields.io/badge/license-MIT-green)
 
 A self-hosted tool for generating marketing/campaign images from a text prompt,
-built on FastAPI and Cloudflare Workers AI (Stable Diffusion XL). Generate multiple
-variations per prompt, browse past generations in a history sidebar, and run the
-whole thing — API and frontend together — as a single deployable service.
+built on FastAPI and Cloudflare Workers AI (Stable Diffusion XL). Pick a campaign
+format (social post, banner ad, poster, product shot) and get correctly-sized,
+style-tuned variations — not just a raw prompt passthrough. Every generation is
+saved to a persistent contact-sheet history. Backend and frontend ship as one
+deployable service.
 
 Built to run entirely on free-tier infrastructure: Cloudflare Workers AI gives
 10,000 neurons/day at no cost, no credit card required.
 
 **Live demo:** _add your deployed URL here once you've deployed it (see Deploy section below)_
+
+> Replace `YOUR_USERNAME/YOUR_REPO_NAME` in the Tests badge URL above with your
+> actual GitHub path once pushed, so the badge resolves.
 
 ---
 
@@ -24,17 +30,28 @@ Runs on Cloudflare's free tier: 10,000 neurons/day, no credit card required.
 
 ## Features
 - Text-to-image generation via Cloudflare Workers AI (free daily quota)
+- **Campaign format presets** — Social Media Post, Banner Ad, Poster, Product Shot —
+  each maps to real generation parameters (aspect ratio + a tuned style suffix),
+  enforced server-side so the frontend can't override them
 - 1–4 variations per prompt in a single request
-- Persistent prompt/image history (SQLite), viewable and deletable from the sidebar
-- One deployable service (backend serves the frontend as static files — no CORS setup needed)
+- Persistent prompt/image history (SQLite) with a contact-sheet UI, viewable and
+  deletable from the sidebar
+- One deployable service (backend serves the frontend as static files — no CORS
+  setup needed)
+- Automated test suite (pytest) covering the API's core logic and error paths,
+  run in CI on every push via GitHub Actions
 
 ## Project structure
 ```
 campaign-app/
-├── main.py              # FastAPI app: API routes + serves static/ as the frontend
+├── main.py                        # FastAPI app: API routes + serves static/ as the frontend
 ├── static/
-│   └── index.html       # Frontend (vanilla HTML/CSS/JS, no build step)
+│   └── index.html                 # Frontend (vanilla HTML/CSS/JS, no build step)
+├── tests/
+│   └── test_main.py               # pytest suite (mocks the Cloudflare call — runs offline)
+├── .github/workflows/tests.yml    # CI: runs pytest on every push/PR to main
 ├── requirements.txt
+├── requirements-dev.txt           # pytest + httpx, for running tests locally
 ├── Dockerfile
 ├── docker-compose.yml
 ├── .env.example
@@ -99,7 +116,22 @@ Open **http://localhost:8000**. The SQLite history file persists in a Docker vol
 
 ---
 
-## 4. Push this to your own GitHub repo
+## 4. Run the test suite
+
+Tests mock the Cloudflare API call, so they run fully offline and cost nothing:
+
+```bash
+pip install -r requirements-dev.txt
+pytest -v
+```
+
+These same tests run automatically in GitHub Actions on every push to `main`
+(see `.github/workflows/tests.yml`) — that's what the Tests badge at the top
+of this README reflects once the repo is on GitHub.
+
+---
+
+## 5. Push this to your own GitHub repo
 
 From inside the `campaign-app` folder:
 
@@ -137,7 +169,7 @@ that's only for the very first setup.
 
 ---
 
-## 5. Deploy (Railway — simplest option)
+## 6. Deploy (Railway — simplest option)
 
 Railway auto-detects the `Dockerfile` and needs no extra config.
 
@@ -172,9 +204,15 @@ has no cold starts).
 | Method | Path                                  | Description                          |
 |--------|---------------------------------------|---------------------------------------|
 | GET    | `/api/v1/health`                      | Health check                          |
-| POST   | `/api/v1/generate-campaign`           | Body: `{"prompt": str, "num_variations": int}` (1–4) |
+| GET    | `/api/v1/campaign-types`              | List available format presets and their dimensions |
+| POST   | `/api/v1/generate-campaign`           | Body: `{"prompt": str, "num_variations": int, "campaign_type": str \| null}` |
 | GET    | `/api/v1/history?limit=30`            | Recent generations with images        |
 | DELETE | `/api/v1/history/{generation_id}`     | Delete one history entry              |
+
+`campaign_type` is one of `social`, `banner`, `poster`, `product`, or `null` for a
+default square image with no style suffix added. See `CAMPAIGN_PRESETS` in
+`main.py` for exact dimensions and prompt suffixes — these are enforced
+server-side regardless of what the frontend sends.
 
 ## Notes
 - Images are stored as base64 directly in SQLite for simplicity. Fine for personal
@@ -187,3 +225,20 @@ has no cold starts).
 - If you want higher-quality output later, Cloudflare also hosts a FLUX model
   (`@cf/black-forest-labs/flux-1-schnell`) — swap `CF_MODEL` in `main.py` to try it,
   though check current free-tier neuron cost for that model before relying on it.
+- Database schema migrations (e.g. the `campaign_type` and `original_prompt`
+  columns) are applied automatically on startup via a simple `ALTER TABLE IF NOT
+  EXISTS`-style check in `init_db()`, so upgrading an existing install won't lose
+  history data.
+
+## Adding a screenshot to this README
+
+Once you have the app running with a few generations in the contact sheet, add a
+screenshot so people don't have to run it to see what it does:
+
+1. Take a screenshot of the app (prompt + a generated result looks best)
+2. Save it in the repo, e.g. `docs/screenshot.png`
+3. Add this near the top of the README, right after the description:
+   ```markdown
+   ![Screenshot](docs/screenshot.png)
+   ```
+4. Commit and push as usual (`git add .`, `git commit -m "Add screenshot"`, `git push`)

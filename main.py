@@ -4,6 +4,7 @@ import sqlite3
 import uuid
 from pathlib import Path
 from datetime import datetime, timezone
+from typing import Optional
 
 import requests
 from fastapi import FastAPI
@@ -20,6 +21,49 @@ DB_PATH = os.environ.get("DB_PATH", str(BASE_DIR / "history.db"))
 
 MAX_VARIATIONS = 4  # cap per request to keep response times and provider cost reasonable
 
+# Campaign format presets: each maps to real generation parameters (aspect ratio +
+# a style suffix appended server-side), not just a cosmetic label. Keeping this
+# mapping server-side means the frontend can't smuggle in arbitrary dimensions.
+CAMPAIGN_PRESETS = {
+    "social": {
+        "label": "Social Media Post",
+        "width": 1024,
+        "height": 1024,
+        "style_suffix": (
+            "clean modern social media graphic, vibrant colors, eye-catching, "
+            "professional marketing design, square composition"
+        ),
+    },
+    "banner": {
+        "label": "Banner Ad",
+        "width": 1280,
+        "height": 720,
+        "style_suffix": (
+            "wide banner advertisement, bold composition with clear negative space "
+            "for headline text, professional ad design, high impact"
+        ),
+    },
+    "poster": {
+        "label": "Poster",
+        "width": 768,
+        "height": 1024,
+        "style_suffix": (
+            "poster design, striking vertical composition, professional print "
+            "advertisement, gallery quality"
+        ),
+    },
+    "product": {
+        "label": "Product Shot",
+        "width": 1024,
+        "height": 1024,
+        "style_suffix": (
+            "professional product photography, studio lighting, clean background, "
+            "commercial advertising shot"
+        ),
+    },
+}
+DEFAULT_DIMENSION = 1024
+
 app = FastAPI(title="Campaign Image Generator")
 
 # Same-origin deployment (frontend served from this app) means CORS is mostly a
@@ -34,11 +78,15 @@ app.add_middleware(
 CF_ACCOUNT_ID = os.environ.get("CF_ACCOUNT_ID")
 CF_API_TOKEN = os.environ.get("CF_API_TOKEN")
 if not CF_ACCOUNT_ID or not CF_API_TOKEN:
-    raise RuntimeError(
-        "CF_ACCOUNT_ID and CF_API_TOKEN environment variables must both be set. "
-        "Copy .env.example to .env and fill them in — see README for how to get "
-        "these from a free Cloudflare account."
-    )
+    # Skip the hard failure during test collection (pytest sets this env var).
+    if not os.environ.get("PYTEST_CURRENT_TEST"):
+        raise RuntimeError(
+            "CF_ACCOUNT_ID and CF_API_TOKEN environment variables must both be set. "
+            "Copy .env.example to .env and fill them in — see README for how to get "
+            "these from a free Cloudflare account."
+        )
+    CF_ACCOUNT_ID = CF_ACCOUNT_ID or "test-account"
+    CF_API_TOKEN = CF_API_TOKEN or "test-token"
 
 CF_MODEL = "@cf/stabilityai/stable-diffusion-xl-base-1.0"
 CF_URL = f"https://api.cloudflare.com/client/v4/accounts/{CF_ACCOUNT_ID}/ai/run/{CF_MODEL}"
@@ -51,6 +99,12 @@ def get_db():
     conn = sqlite3.connect(DB_PATH)
     conn.row_factory = sqlite3.Row
     return conn
+
+
+def _add_column_if_missing(conn, table, column, definition):
+    existing = {row["name"] for row in conn.execute(f"PRAGMA table_info({table})")}
+    if column not in existing:
+        conn.execute(f"ALTER TABLE {table} ADD COLUMN {column} {definition}")
 
 
 def init_db():
@@ -75,6 +129,9 @@ def init_db():
         )
         """
     )
+    # Migrations for installs created before campaign_type/original_prompt existed.
+    _add_column_if_missing(conn, "generations", "campaign_type", "TEXT")
+    _add_column_if_missing(conn, "generations", "original_prompt", "TEXT")
     conn.commit()
     conn.close()
 
@@ -87,15 +144,30 @@ init_db()
 class CampaignRequest(BaseModel):
     prompt: str
     num_variations: int = 1
+    campaign_type: Optional[str] = None  # one of CAMPAIGN_PRESETS keys, or None
+
+
+# ---------- Prompt building ----------
+
+def build_generation_params(prompt: str, campaign_type: Optional[str]):
+    """Returns (final_prompt, width, height) for a given campaign type."""
+    preset = CAMPAIGN_PRESETS.get(campaign_type) if campaign_type else None
+    if preset:
+        final_prompt = f"{prompt}, {preset['style_suffix']}"
+        return final_prompt, preset["width"], preset["height"]
+    return prompt, DEFAULT_DIMENSION, DEFAULT_DIMENSION
 
 
 # ---------- Cloudflare Workers AI call ----------
 
-def call_cloudflare(prompt: str):
+def call_cloudflare(prompt: str, width: int = DEFAULT_DIMENSION, height: int = DEFAULT_DIMENSION):
     """Returns (image_bytes, content_type, error_message)."""
     try:
         response = requests.post(
-            CF_URL, headers=HEADERS, json={"prompt": prompt}, timeout=60
+            CF_URL,
+            headers=HEADERS,
+            json={"prompt": prompt, "width": width, "height": height},
+            timeout=60,
         )
     except requests.exceptions.RequestException as e:
         return None, None, f"Connection error: {str(e)}"
@@ -123,18 +195,32 @@ def health_check():
     return {"status": "ok"}
 
 
+@app.get("/api/v1/campaign-types")
+def get_campaign_types():
+    return {
+        "status": "success",
+        "types": [
+            {"key": key, "label": preset["label"], "width": preset["width"], "height": preset["height"]}
+            for key, preset in CAMPAIGN_PRESETS.items()
+        ],
+    }
+
+
 @app.post("/api/v1/generate-campaign")
 def generate_campaign(request: CampaignRequest):
-    prompt = request.prompt.strip()
-    if not prompt:
+    original_prompt = request.prompt.strip()
+    if not original_prompt:
         return {"status": "error", "message": "Prompt cannot be empty"}
+
+    campaign_type = request.campaign_type if request.campaign_type in CAMPAIGN_PRESETS else None
+    final_prompt, width, height = build_generation_params(original_prompt, campaign_type)
 
     num_variations = max(1, min(request.num_variations, MAX_VARIATIONS))
 
     images = []
     errors = []
     for _ in range(num_variations):
-        content, content_type, error = call_cloudflare(prompt)
+        content, content_type, error = call_cloudflare(final_prompt, width, height)
         if error:
             errors.append(error)
             continue
@@ -157,8 +243,9 @@ def generate_campaign(request: CampaignRequest):
 
     conn = get_db()
     conn.execute(
-        "INSERT INTO generations (id, prompt, created_at) VALUES (?, ?, ?)",
-        (generation_id, prompt, created_at),
+        "INSERT INTO generations (id, prompt, created_at, campaign_type, original_prompt) "
+        "VALUES (?, ?, ?, ?, ?)",
+        (generation_id, final_prompt, created_at, campaign_type, original_prompt),
     )
     for img in images:
         conn.execute(
@@ -171,7 +258,9 @@ def generate_campaign(request: CampaignRequest):
     return {
         "status": "success",
         "generation_id": generation_id,
-        "prompt": prompt,
+        "prompt": original_prompt,
+        "final_prompt": final_prompt,
+        "campaign_type": campaign_type,
         "created_at": created_at,
         "images": images,
         "requested": num_variations,
@@ -183,7 +272,8 @@ def generate_campaign(request: CampaignRequest):
 def get_history(limit: int = 30):
     conn = get_db()
     generations = conn.execute(
-        "SELECT id, prompt, created_at FROM generations ORDER BY created_at DESC LIMIT ?",
+        "SELECT id, prompt, original_prompt, campaign_type, created_at "
+        "FROM generations ORDER BY created_at DESC LIMIT ?",
         (limit,),
     ).fetchall()
 
@@ -196,7 +286,8 @@ def get_history(limit: int = 30):
         history.append(
             {
                 "id": gen["id"],
-                "prompt": gen["prompt"],
+                "prompt": gen["original_prompt"] or gen["prompt"],
+                "campaign_type": gen["campaign_type"],
                 "created_at": gen["created_at"],
                 "images": [
                     {"image_base64": img["image_base64"], "content_type": img["content_type"]}
