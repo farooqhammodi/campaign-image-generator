@@ -70,7 +70,8 @@ def test_campaign_types_lists_all_presets(client):
 
 def test_build_generation_params_no_preset_returns_default_square():
     prompt, width, height = main.build_generation_params("a red apple", None)
-    assert prompt == "a red apple"
+    assert "a red apple" in prompt
+    assert "photorealistic" in prompt  # default style suffix should be applied
     assert width == main.DEFAULT_DIMENSION
     assert height == main.DEFAULT_DIMENSION
 
@@ -88,7 +89,7 @@ def test_build_generation_params_poster_is_tall():
 
 def test_build_generation_params_unknown_type_falls_back_to_default():
     prompt, width, height = main.build_generation_params("a red apple", "not-a-real-type")
-    assert prompt == "a red apple"
+    assert "a red apple" in prompt
     assert width == main.DEFAULT_DIMENSION
 
 
@@ -136,6 +137,20 @@ def test_generate_campaign_applies_campaign_type_preset(mock_post, client):
     _, kwargs = mock_post.call_args
     assert kwargs["json"]["width"] == main.CAMPAIGN_PRESETS["banner"]["width"]
     assert kwargs["json"]["height"] == main.CAMPAIGN_PRESETS["banner"]["height"]
+
+
+@patch("main.requests.post")
+def test_generate_campaign_sends_negative_prompt_against_cartoon_style(mock_post, client):
+    mock_post.return_value = _fake_image_response()
+
+    client.post(
+        "/api/v1/generate-campaign",
+        json={"prompt": "a red apple", "num_variations": 1},
+    )
+
+    _, kwargs = mock_post.call_args
+    assert "cartoon" in kwargs["json"]["negative_prompt"]
+    assert "illustration" in kwargs["json"]["negative_prompt"]
 
 
 @patch("main.requests.post")

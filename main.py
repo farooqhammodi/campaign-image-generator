@@ -21,6 +21,14 @@ DB_PATH = os.environ.get("DB_PATH", str(BASE_DIR / "history.db"))
 
 MAX_VARIATIONS = 4  # cap per request to keep response times and provider cost reasonable
 
+# Applied to every generation to steer Stable Diffusion XL away from the
+# illustrated/cartoon look it defaults to, and toward photographic realism.
+NEGATIVE_PROMPT = (
+    "cartoon, illustration, anime, drawing, painting, sketch, 3d render, cgi, "
+    "clip art, low quality, blurry, distorted, watermark, text, logo"
+)
+PHOTOREALISTIC_SUFFIX = "photorealistic, realistic photography, sharp focus, natural lighting, high detail"
+
 # Campaign format presets: each maps to real generation parameters (aspect ratio +
 # a style suffix appended server-side), not just a cosmetic label. Keeping this
 # mapping server-side means the frontend can't smuggle in arbitrary dimensions.
@@ -30,8 +38,8 @@ CAMPAIGN_PRESETS = {
         "width": 1024,
         "height": 1024,
         "style_suffix": (
-            "clean modern social media graphic, vibrant colors, eye-catching, "
-            "professional marketing design, square composition"
+            f"clean modern social media graphic, vibrant colors, eye-catching, "
+            f"professional marketing design, square composition, {PHOTOREALISTIC_SUFFIX}"
         ),
     },
     "banner": {
@@ -39,8 +47,8 @@ CAMPAIGN_PRESETS = {
         "width": 1280,
         "height": 720,
         "style_suffix": (
-            "wide banner advertisement, bold composition with clear negative space "
-            "for headline text, professional ad design, high impact"
+            f"wide banner advertisement, bold composition with clear negative space "
+            f"for headline text, professional ad design, high impact, {PHOTOREALISTIC_SUFFIX}"
         ),
     },
     "poster": {
@@ -48,8 +56,8 @@ CAMPAIGN_PRESETS = {
         "width": 768,
         "height": 1024,
         "style_suffix": (
-            "poster design, striking vertical composition, professional print "
-            "advertisement, gallery quality"
+            f"poster design, striking vertical composition, professional print "
+            f"advertisement, gallery quality, {PHOTOREALISTIC_SUFFIX}"
         ),
     },
     "product": {
@@ -57,12 +65,13 @@ CAMPAIGN_PRESETS = {
         "width": 1024,
         "height": 1024,
         "style_suffix": (
-            "professional product photography, studio lighting, clean background, "
-            "commercial advertising shot"
+            f"professional product photography, studio lighting, clean background, "
+            f"commercial advertising shot, {PHOTOREALISTIC_SUFFIX}"
         ),
     },
 }
 DEFAULT_DIMENSION = 1024
+DEFAULT_STYLE_SUFFIX = PHOTOREALISTIC_SUFFIX  # applied even when no campaign_type is selected
 
 app = FastAPI(title="Campaign Image Generator")
 
@@ -155,7 +164,8 @@ def build_generation_params(prompt: str, campaign_type: Optional[str]):
     if preset:
         final_prompt = f"{prompt}, {preset['style_suffix']}"
         return final_prompt, preset["width"], preset["height"]
-    return prompt, DEFAULT_DIMENSION, DEFAULT_DIMENSION
+    final_prompt = f"{prompt}, {DEFAULT_STYLE_SUFFIX}"
+    return final_prompt, DEFAULT_DIMENSION, DEFAULT_DIMENSION
 
 
 # ---------- Cloudflare Workers AI call ----------
@@ -166,7 +176,12 @@ def call_cloudflare(prompt: str, width: int = DEFAULT_DIMENSION, height: int = D
         response = requests.post(
             CF_URL,
             headers=HEADERS,
-            json={"prompt": prompt, "width": width, "height": height},
+            json={
+                "prompt": prompt,
+                "negative_prompt": NEGATIVE_PROMPT,
+                "width": width,
+                "height": height,
+            },
             timeout=60,
         )
     except requests.exceptions.RequestException as e:
